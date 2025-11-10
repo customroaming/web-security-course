@@ -1,0 +1,16 @@
+:PROPERTIES:
+:ID:       dad4012b-192f-4a09-985f-c4dd259cc49a
+:END:
+#+title: Blind SQL Injection
+#+created: [2025-08-07 Thu 17:28]
+#+filetags: :cyber:
+* Blind SQL Injection
+Blind SQL injection occurs when an application is vulnerable to SQL injection, but its HTTP responses do not contain the results of the relevant SQL query or the details of any database errors.
+
+Many techniques such as UNION attacks are not effective with blind SQL injection vulnerabilities. This is because they rely on being able to see the results of the injected query within the application's responses. It is still possible to exploit blind SQL injection to access unauthorized data, but different techniques must be used.
+
+- There are multiple attack vectors to choose from, you can find them linked below:
+- [[id:42f9a6eb-b9fa-4f12-8904-78c4fc5fa797][Exploiting Blind SQL Injection By Triggering Conditional Responses]]
+- [[id:cd3e6ecc-aa81-4c8c-a75a-6e98c733b16e][Error-based SQL injection]]
+- [[id:ad66e5f0-596d-44c8-b2de-dc67f61ce630][Exploiting blind SQL injection by triggering time delays]]
+- [[id:0e498f08-f82f-4fb3-94c1-ba54d80ccfc3][Exploiting blind SQL injection using out-of-band (OAST) techniques]]
