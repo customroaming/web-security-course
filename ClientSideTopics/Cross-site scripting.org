@@ -78,6 +78,11 @@ There are various means by which an attacker might induce a victim user to make 
 
 The need for an external delivery mechanism for the attack means that the impact of reflected XSS is generally less severe than stored XSS, where a self-contained attack can be delivered within the vulnerable application itself.
 
+** Reflected XSS in different contexts
+There are many different varieties of reflected cross-site scripting. The location of the reflected data within the application's response determines what type of payload is required to exploit it and might also affect the impact of the vulnerability.
+
+In addition, if the application performs any validation or other processing on the submitted data before it is reflected, this will generally affect what kind of XSS payload is needed.
+
 ** How to find and test for reflected XSS vulnerabilities
 The vast majority of reflected cross-site scripting vulnerabilities can be found quickly and reliably using Burp Suite's web vulnerability scanner.
 
@@ -89,6 +94,11 @@ Testing for reflected XSS vulnerabilities manually involves the following steps:
 - Test a candidate payload. Based on the context of the reflection, test an initial candidate XSS payload that will trigger JavaScript execution if it is reflected unmodified within the response. The easiest way to test payloads is to send the request to Burp Repeater, modify the request to insert the candidate payload, issue the request, and then review the response to see if the payload worked. An efficient way to work is to leave the original random value in the request and place the candidate XSS payload before or after it. Then set the random value as the search term in Burp Repeater's response view. Burp will highlight each location where the search term appears, letting you quickly locate the reflection.
 - Test alternative payloads. If the candidate XSS payload was modified by the application, or blocked altogether, then you will need to test alternative payloads and techniques that might deliver a working XSS attack based on the context of the reflection and the type of input validation that is being performed. For more details, see cross-site scripting contexts
 - Test the attack in a browser. Finally, if you succeed in finding a payload that appears to work within Burp Repeater, transfer the attack to a real browser (by pasting the URL into the address bar, or by modifying the request in Burp Proxy's intercept view, and see if the injected JavaScript is indeed executed. Often, it is best to execute some simple JavaScript like alert(document.domain) which will trigger a visible popup within the browser if the attack succeeds.
+
+** Common questions about reflected cross-site scripting
+What is the difference between reflected XSS and stored XSS? Reflected XSS arises when an application takes some input from an HTTP request and embeds that input into the immediate response in an unsafe way. With stored XSS, the application instead stores the input and embeds it into a later response in an unsafe way.
+
+What is the difference between reflected XSS and self-XSS? Self-XSS involves similar application behavior to regular reflected XSS, however it cannot be triggered in normal ways via a crafted URL or a cross-domain request. Instead, the vulnerability is only triggered if the victim themselves submits the XSS payload from their browser. Delivering a self-XSS attack normally involves socially engineering the victim to paste some attacker-supplied input into their browser. As such, it is normally considered to be a lame, low-impact issue.
 
 * Stored cross-site scripting
 Stored XSS (also known as persistent or second-order XSS) arises when an application receives data from an untrusted source and includes that data within its later HTTP responses in an unsafe way.
@@ -114,3 +124,19 @@ The application doesn't perform any other processing of the data, so an attacker
 https://insecure-website.com/status?message=<script>/*+Bad+stuff+here...+*/</script>
 <p>Status: <script>/* Bad stuff here... */</script></p>
 If the user visits the URL constructed by the attacker, then the attacker's script executes in the user's browser, in the context of that user's session with the application. At that point, the script can carry out any action, and retrieve any data, to which the user has access.
+
+* Cross-site scripting contexts
+When testing for reflected and stored XSS, a key task is to identify the XSS context:
+
+- The location within the response where attacker-controllable data appears.
+- Any input validation or other processing that is being performed on that data by the application.
+Based on these details, you can then select one or more candidate XSS payloads, and test whether they are effective.
+
+** XSS between HTML tags
+When the XSS context is text between HTML tags, you need to introduce some new HTML tags designed to trigger execution of JavaScript.
+
+Some useful ways of executing JavaScript are:
+
+```html
+<script>alert(document.domain)</script>
+<img src=1 onerror=alert(1)>
