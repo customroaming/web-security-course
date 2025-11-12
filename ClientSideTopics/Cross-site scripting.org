@@ -139,3 +139,35 @@ Some useful ways of executing JavaScript are:
 
 <script>alert(document.domain)</script>
 <img src=1 onerror=alert(1)>
+
+*** Lab: Stored XSS into HTML context with nothing encoded
+APPRENTICE
+
+LAB
+Solved
+This lab contains a stored cross-site scripting vulnerability in the comment functionality.
+
+To solve this lab, submit a comment that calls the alert function when the blog post is viewed.
+
+- solution:
+  I just put the following code in the comment, it worked as the server doesn't validate any characters:
+  <script>alert(document.domain)</script>
+  <img src=1 onerror=alert(
+
+*** Lab: Reflected XSS into HTML context with most tags and attributes blocked
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a reflected XSS vulnerability in the search functionality but uses a web application firewall (WAF) to protect against common XSS vectors.
+
+To solve the lab, perform a cross-site scripting attack that bypasses the WAF and calls the print() function.
+
+- solution:
+  this one was really hard as it was more complex than previous labs.
+  I tried to inject the img print function into the search term, but I got the error no tags allowed.
+  I then had to send the search request to the intruder and use '<>' as the search term, I injected all tags within the <> using the xss cheat sheet. This gave me 400 responses except for custom tag and body.
+  I then used body {}=1 in intruder with the events from the cheat sheet, this gave me loads of 200 responses, I then had to pick onResize as the attack vector and crafted a xss like so:
+  #+BEGIN_SRC html
+  <iframe src="https://YOUR-LAB-ID.web-security-academy.net/?search=%22%3E%3Cbody%20onresize=print()%3E" onload=this.style.width='100px'>
+  #+END_SRC
