@@ -171,3 +171,60 @@ To solve the lab, perform a cross-site scripting attack that bypasses the WAF an
   #+BEGIN_SRC html
   <iframe src="https://YOUR-LAB-ID.web-security-academy.net/?search=%22%3E%3Cbody%20onresize=print()%3E" onload=this.style.width='100px'>
   #+END_SRC
+
+*** Lab: Reflected XSS into HTML context with all tags blocked except custom ones
+PRACTITIONER
+
+LAB
+Solved
+This lab blocks all HTML tags except custom ones.
+
+To solve the lab, perform a cross-site scripting attack that injects a custom tag and automatically alerts document.cookie.
+
+- solution:
+  - This was another hard one, I had to do the same method as the previous lab.
+  - I found that one of the few tags that were accepted were custom tags; these tags are a bit shite.
+  - I used the custom tag xss with the event onfocus as this was the only one that could be exploited for a custom tag.
+  - I then crafted the payload within script tags to result in this:
+    #+begin_src html
+  <script>
+  location = 'https://0a28001103d1c150800999c4006e00b8.web-security-academy.net/?search=%3Cxss+id%3Dx+onfocus%3Dalert%28document.cookie%29%20tabindex=1%3E#x';
+  </script>
+    #+end_src
+    this payload creates a new html element with an id of x, makes it focusable with tab index, then closes the tag and focuses the element with #x
+
+*** Lab: Reflected XSS with event handlers and href attributes blocked
+EXPERT
+
+LAB
+Solved
+This lab contains a reflected XSS vulnerability with some whitelisted tags, but all events and anchor href attributes are blocked.
+
+To solve the lab, perform a cross-site scripting attack that injects a vector that, when clicked, calls the alert function.
+
+Note that you need to label your vector with the word "Click" in order to induce the simulated lab user to click your vector. For example:
+
+<a href="">Click me</a>
+
+- solution:
+  - another hard one, we had to craft a payload that accepted anchor tags, but no attributes and no methods, my intruder was being slow so I didn't realise I could use other tags. However, all I had to do was create an svg element, place an achor tag within it, then place an animate tag within that, set the parents attributes through attributeName and values.
+  - This was hard because it expects a breadth of knowledge on different html tags and all their attributes.
+  - the following was the code:
+   #+begin_quote
+   https://YOUR-LAB-ID.web-security-academy.net/?search=%3Csvg%3E%3Ca%3E%3Canimate+attributeName%3Dhref+values%3Djavascript%3Aalert(1)+%2F%3E%3Ctext+x%3D20+y%3D20%3EClick%20me%3C%2Ftext%3E%3C%2Fa%3E
+
+   #+end_quote
+
+*** Lab: Reflected XSS with some SVG markup allowed
+PRACTITIONER
+
+LAB
+Solved
+This lab has a simple reflected XSS vulnerability. The site is blocking common tags but misses some SVG tags and events.
+
+To solve the lab, perform a cross-site scripting attack that calls the alert() function.
+
+- solution:
+  - this lab was easier than the previous labs.
+  - I think the labs might be out of order xD
+  - I had to use the svg tag, with the animatetransform tag inside it, the animate transform tag could use the method onbegin, I set that equal to alert(1)
