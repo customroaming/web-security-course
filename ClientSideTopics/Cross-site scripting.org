@@ -228,3 +228,90 @@ To solve the lab, perform a cross-site scripting attack that calls the alert() f
   - this lab was easier than the previous labs.
   - I think the labs might be out of order xD
   - I had to use the svg tag, with the animatetransform tag inside it, the animate transform tag could use the method onbegin, I set that equal to alert(1)
+
+** XSS in HTML tag attributes
+When the XSS context is into an HTML tag attribute value, you might sometimes be able to terminate the attribute value, close the tag, and introduce a new one. For example:
+#+begin_src html
+"><script>alert(document.domain)</script>
+#+end_src
+More commonly in this situation, angle brackets are blocked or encoded, so your input cannot break out of the tag in which it appears. Provided you can terminate the attribute value, you can normally introduce a new attribute that creates a scriptable context, such as an event handler. For example:
+#+begin_src html
+" autofocus onfocus=alert(document.domain) x="
+#+end_src
+The above payload creates an onfocus event that will execute JavaScript when the element receives the focus, and also adds the autofocus attribute to try to trigger the onfocus event automatically without any user interaction. Finally, it adds x=" to gracefully repair the following markup.
+
+Sometimes the XSS context is into a type of HTML tag attribute that itself can create a scriptable context. Here, you can execute JavaScript without needing to terminate the attribute value. For example, if the XSS context is into the href attribute of an anchor tag, you can use the javascript pseudo-protocol to execute script. For example:
+
+#+begin_src html
+<a href="javascript:alert(document.domain)">
+#+end_src
+*** Lab: Reflected XSS into attribute with angle brackets HTML-encoded
+APPRENTICE
+
+LAB
+Solved
+This lab contains a reflected cross-site scripting vulnerability in the search blog functionality where angle brackets are HTML-encoded. To solve this lab, perform a cross-site scripting attack that injects an attribute and calls the alert function.
+
+- solution:
+  as angle brackets were encoded, I couldn't break out of the HTML element, so I had to create attributes of the current one, I used the following html:
+#+begin_src html
+" autofocus onfocus=alert(document.domain) x="
+#+end_src
+
+*** Lab: Stored XSS into anchor href attribute with double quotes HTML-encoded
+APPRENTICE
+
+LAB
+Solved
+This lab contains a stored cross-site scripting vulnerability in the comment functionality. To solve this lab, submit a comment that calls the alert function when the comment author name is clicked.
+- solution:
+  this one was easy, all I had to do was put this in the website input
+  #+begin_src html
+<a href="javascript:alert(document.domain)">
+  #+end_src
+
+** XSS in hidden input fields
+You might encounter websites that encode angle brackets but still allow you to inject attributes. Sometimes, these injections are possible even within tags that don't usually fire events automatically, such as a canonical tag. You can exploit this behavior using access keys and user interaction on Chrome. Access keys allow you to provide keyboard shortcuts that reference a specific element. The accesskey attribute allows you to define a letter that, when pressed in combination with other keys (these vary across different platforms), will cause events to fire. In the next lab you can experiment with access keys and exploit a canonical tag.
+
+*** PortSwigger Essay
+At PortSwigger, we regularly run pre-release builds of Burp Suite against an internal testbed of popular web applications to make sure it's behaving properly. Whilst doing this recently, Liam found a Cross-Site Scripting (XSS) vulnerability in [REDACTED], inside a hidden input element:
+
+<input type="hidden" name="redacted" value="default" injection="xss" />
+XSS in hidden inputs is frequently very difficult to exploit because typical JavaScript events like onmouseover and onfocus can't be triggered due to the element being invisible.
+
+I decided to investigate further to see if it was possible to exploit this on a modern browser. I tried a bunch of stuff like autofocus, CSS tricks and other stuff. Eventually I thought about access keys and wondered if the onclick event would be called on the hidden input when it activated via an access key. It most certainly does on Firefox! This means we can execute an XSS payload inside a hidden attribute, provided you can persuade the victim into pressing the key combination. On Firefox Windows/Linux the key combination is ALT+SHIFT+X and on OS X it is CTRL+ALT+X. You can specify a different key combination using a different key in the access key attribute. Here is the vector:
+
+<input type="hidden" accesskey="X" onclick="alert(1)">
+This vector isn't ideal because it involves some user interaction, but it's vastly better than expression() which only works on IE<=9. Please note if your reflection is repeated then the key combination will fail. A workaround is to then inject another attribute that breaks the second reflection. e.g. " accesskey="x" onclick="alert(1)" x='
+
+Note: We've reported this vulnerability to the application's security team. However, they haven't responded in any way after 12 days and a couple of emails. We wanted to make people aware of this particular technique, but we won't be naming the vulnerable application concerned until a patch is available.
+
+This isn't the first time that Burp Scanner has unearthed a vulnerability in an extremely popular web application, and we doubt it will be the last.
+
+Update - Now works on Chrome and link/meta and any other elements
+This technique now works in Chrome! It also works in link elements that means previously unexploitable XSS bugs in link elements where you only control attributes can be exploited using this technique. For example you might have a link element with a rel attribute on canonical, if you inject the accesskey attribute with an onclick event then you have XSS.
+#+begin_src html
+<link rel="canonical" accesskey="X" onclick="alert(1)" />
+#+end_src
+Poc using link elements (Press ALT+SHIFT+X on Windows) (CTRL+ALT+X on OS X)
+
+*** Lab: Reflected XSS in canonical link tag
+PRACTITIONER
+
+LAB
+Solved
+This lab reflects user input in a canonical link tag and escapes angle brackets.
+
+To solve the lab, perform a cross-site scripting attack on the home page that injects an attribute that calls the alert function.
+
+To assist with your exploit, you can assume that the simulated user will press the following key combinations:
+#+begin_quote
+- ALT+SHIFT+X
+- CTRL+ALT+X
+- Alt+X
+#+end_quote
+Please note that the intended solution to this lab is only possible in Chrome.
+
+- solution:
+  - this one was okay, the url was being used as the canonical tag, I could then escape it using " accesskey="X" onclick="alert(1)"
+  - this caused the user to access alert when pressing alt X
