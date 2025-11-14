@@ -315,3 +315,76 @@ Please note that the intended solution to this lab is only possible in Chrome.
 - solution:
   - this one was okay, the url was being used as the canonical tag, I could then escape it using " accesskey="X" onclick="alert(1)"
   - this caused the user to access alert when pressing alt X
+
+** XSS into JavaScript
+When the XSS context is some existing JavaScript within the response, a wide variety of situations can arise, with different techniques necessary to perform a successful exploit.
+
+Terminating the existing script
+In the simplest case, it is possible to simply close the script tag that is enclosing the existing JavaScript, and introduce some new HTML tags that will trigger execution of JavaScript. For example, if the XSS context is as follows:
+#+begin_src html
+<script>
+...
+var input = 'controllable data here';
+...
+</script>
+#+end_src
+then you can use the following payload to break out of the existing JavaScript and execute your own:
+#+begin_src html
+</script><img src=1 onerror=alert(document.domain)>
+#+end_src
+
+The reason this works is that the browser first performs HTML parsing to identify the page elements including blocks of script, and only later performs JavaScript parsing to understand and execute the embedded scripts. The above payload leaves the original script broken, with an unterminated string literal. But that doesn't prevent the subsequent script being parsed and executed in the normal way.
+
+*** Lab: Reflected XSS into a JavaScript string with single quote and backslash escaped
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a reflected cross-site scripting vulnerability in the search query tracking functionality. The reflection occurs inside a JavaScript string with single quotes and backslashes escaped.
+
+To solve this lab, perform a cross-site scripting attack that breaks out of the JavaScript string and calls the alert function.
+
+- solution:
+  I used the above information to create an img element that throws an error. see below:
+#+begin_src html
+'</script><img src=1 onerror=alert(document.domain)>
+#+end_src
+
+** Breaking out of a JavaScript string
+In cases where the XSS context is inside a quoted string literal, it is often possible to break out of the string and execute JavaScript directly. It is essential to repair the script following the XSS context, because any syntax errors there will prevent the whole script from executing.
+
+Some useful ways of breaking out of a string literal are:
+#+begin_src javascript
+'-alert(document.domain)-'
+';alert(document.domain)//
+#+end_src
+
+Some applications attempt to prevent input from breaking out of the JavaScript string by escaping any single quote characters with a backslash. A backslash before a character tells the JavaScript parser that the character should be interpreted literally, and not as a special character such as a string terminator. In this situation, applications often make the mistake of failing to escape the backslash character itself. This means that an attacker can use their own backslash character to neutralize the backslash that is added by the application.
+
+For example, suppose that the input:
+';alert(document.domain)//
+gets converted to:
+#+begin_src javascript
+\';alert(document.domain)//
+#+end_src
+You can now use the alternative payload:
+#+begin_src javascript
+\';alert(document.domain)//
+#+end_src
+which gets converted to:
+#+begin_src javascript
+\\';alert(document.domain)//
+#+end_src
+Here, the first backslash means that the second backslash is interpreted literally, and not as a special character. This means that the quote is now interpreted as a string terminator, and so the attack succeeds.
+** Lab: Reflected XSS into a JavaScript string with angle brackets HTML encoded
+APPRENTICE
+
+LAB
+Solved
+This lab contains a reflected cross-site scripting vulnerability in the search query tracking functionality where angle brackets are encoded. The reflection occurs inside a JavaScript string. To solve this lab, perform a cross-site scripting attack that breaks out of the JavaScript string and calls the alert function.
+
+- solution:
+  I used the above code to escape out and run some js:
+#+begin_src javascript
+';alert(document.domain)//
+#+end_src
