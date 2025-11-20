@@ -396,8 +396,10 @@ For example, if the XSS context is as follows:
 <a href="#" onclick="... var input='controllable data here'; ...">
 #+end_src
 and the application blocks or escapes single quote characters, you can use the following payload to break out of the JavaScript string and execute your own script:
+#+begin_src javascript
 ~&apos;-alert(document.domain)-&apos;~
-The ~&apos;~ sequence is an HTML entity representing an apostrophe or single quote. Because the browser HTML-decodes the value of the onclick attribute before the JavaScript is interpreted, the entities are decoded as quotes, which become string delimiters, and so the attack succeeds.
+#+end_src
+The ~&apos;~ sequence is an HTML entity representing an apostrophe or single quote. Because the browser HTML-decodes the value of the ~onclick~ attribute before the JavaScript is interpreted, the entities are decoded as quotes, which become string delimiters, and so the attack succeeds.
 
 
 ** Lab: Reflected XSS into a JavaScript string with angle brackets HTML encoded
@@ -447,3 +449,51 @@ The exploit uses exception handling to call the alert function with arguments. T
 As throw is a statement, it cannot be used as an expression. Instead, we need to use arrow functions to create a block so that the throw statement can be used. We then need to call this function, so we assign it to the toString property of window and trigger this by forcing a string conversion on window.
 - solution:
   this was really hard, I had to ask chatgpt to explain it over 35 mins.
+** Lab: Stored XSS into onclick event with angle brackets and double quotes HTML-encoded and single quotes and backslash escaped
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a stored cross-site scripting vulnerability in the comment functionality.
+
+To solve this lab, submit a comment that calls the alert function when the comment author name is clicked.
+
+- solution:
+  I checked the comment functionality, and saw it used some js to create a tracker when a users website was clicked, I saw it also escaped apostrophes, so used this payload but url encoded teh & symbols:
+
+#+begin_src javascript
+~&apos;-alert(document.domain)-&apos;~
+#+end_src
+** XSS in JavaScript template literals
+JavaScript template literals are string literals that allow embedded JavaScript expressions. The embedded expressions are evaluated and are normally concatenated into the surrounding text. Template literals are encapsulated in backticks instead of normal quotation marks, and embedded expressions are identified using the ~${...}~ syntax.
+
+For example, the following script will print a welcome message that includes the user's display name:
+
+#+begin_src javascript
+document.getElementById('message').innerText = `Welcome, ${user.displayName}.`;
+#+end_src
+When the XSS context is into a JavaScript template literal, there is no need to terminate the literal. Instead, you simply need to use the ${...} syntax to embed a JavaScript expression that will be executed when the literal is processed. For example, if the XSS context is as follows:
+
+#+begin_src javascript
+<script>
+...
+var input = `controllable data here`;
+...
+</script>
+#+end_src
+then you can use the following payload to execute JavaScript without terminating the template literal:
+
+#+begin_src javascript
+${alert(document.domain)}
+#+end_src
+*** ab: Reflected XSS into a template literal with angle brackets, single, double quotes, backslash and backticks Unicode-escaped
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a reflected cross-site scripting vulnerability in the search blog functionality. The reflection occurs inside a template string with angle brackets, single, and double quotes HTML encoded, and backticks escaped. To solve this lab, perform a cross-site scripting attack that calls the alert function inside the template string.
+
+- solution:
+  since the search string escaped all useful characters, I decided to try ~${alert(1)}~ and it worked.
+** XSS via client-side template injection
+Some websites use a client-side template framework, such as AngularJS, to dynamically render web pages. If they embed user input into these templates in an unsafe manner, an attacker may be able to inject their own malicious template expressions that launch an XSS attack.
