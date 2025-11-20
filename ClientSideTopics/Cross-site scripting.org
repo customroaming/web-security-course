@@ -376,6 +376,30 @@ which gets converted to:
 \\';alert(document.domain)//
 #+end_src
 Here, the first backslash means that the second backslash is interpreted literally, and not as a special character. This means that the quote is now interpreted as a string terminator, and so the attack succeeds.
+
+Some websites make XSS more difficult by restricting which characters you are allowed to use. This can be on the website level or by deploying a WAF that prevents your requests from ever reaching the website. In these situations, you need to experiment with other ways of calling functions which bypass these security measures. One way of doing this is to use the throw statement with an exception handler. This enables you to pass arguments to a function without using parentheses. The following code assigns the alert() function to the global exception handler and the throw statement passes the 1 to the exception handler (in this case alert). The end result is that the alert() function is called with 1 as an argument.
+
+#+begin_src javascript
+onerror=alert;throw 1
+#+end_src
+There are multiple ways of using this technique to call functions without parentheses.
+
+The next lab demonstrates a website that filters certain characters. You'll have to use similar techniques to those described above in order to solve it.
+
+*** Making use of HTML-encoding
+When the XSS context is some existing JavaScript within a quoted tag attribute, such as an event handler, it is possible to make use of HTML-encoding to work around some input filters.
+
+When the browser has parsed out the HTML tags and attributes within a response, it will perform HTML-decoding of tag attribute values before they are processed any further. If the server-side application blocks or sanitizes certain characters that are needed for a successful XSS exploit, you can often bypass the input validation by HTML-encoding those characters.
+
+For example, if the XSS context is as follows:
+#+begin_src javascript
+<a href="#" onclick="... var input='controllable data here'; ...">
+#+end_src
+and the application blocks or escapes single quote characters, you can use the following payload to break out of the JavaScript string and execute your own script:
+~&apos;-alert(document.domain)-&apos;~
+The ~&apos;~ sequence is an HTML entity representing an apostrophe or single quote. Because the browser HTML-decodes the value of the onclick attribute before the JavaScript is interpreted, the entities are decoded as quotes, which become string delimiters, and so the attack succeeds.
+
+
 ** Lab: Reflected XSS into a JavaScript string with angle brackets HTML encoded
 APPRENTICE
 
@@ -388,3 +412,38 @@ This lab contains a reflected cross-site scripting vulnerability in the search q
 #+begin_src javascript
 ';alert(document.domain)//
 #+end_src
+** Lab: Reflected XSS into a JavaScript string with angle brackets and double quotes HTML-encoded and single quotes escaped
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a reflected cross-site scripting vulnerability in the search query tracking functionality where angle brackets and double are HTML encoded and single quotes are escaped.
+
+To solve this lab, perform a cross-site scripting attack that breaks out of the JavaScript string and calls the alert function.
+
+- solution:
+  as angle brackets and '' were being escaped I used the following js:
+#+begin_src javascript
+\';alert(document.domain)//
+#+end_src
+** Lab: Reflected XSS in a JavaScript URL with some characters blocked
+EXPERT
+
+LAB
+Solved
+This lab reflects your input in a JavaScript URL, but all is not as it seems. This initially seems like a trivial challenge; however, the application is blocking some characters in an attempt to prevent XSS attacks.
+
+To solve the lab, perform a cross-site scripting attack that calls the alert function with the string 1337 contained somewhere in the alert message.
+
+ACCESS THE LAB
+ Solution
+Visit the following URL, replacing YOUR-LAB-ID with your lab ID:
+
+https://YOUR-LAB-ID.web-security-academy.net/post?postId=5&%27},x=x=%3E{throw/**/onerror=alert,1337},toString=x,window%2b%27%27,{x:%27
+The lab will be solved, but the alert will only be called if you click "Back to blog" at the bottom of the page.
+
+The exploit uses exception handling to call the alert function with arguments. The throw statement is used, separated with a blank comment in order to get round the no spaces restriction. The alert function is assigned to the onerror exception handler.
+
+As throw is a statement, it cannot be used as an expression. Instead, we need to use arrow functions to create a block so that the throw statement can be used. We then need to call this function, so we assign it to the toString property of window and trigger this by forcing a string conversion on window.
+- solution:
+  this was really hard, I had to ask chatgpt to explain it over 35 mins.
