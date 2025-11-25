@@ -536,3 +536,29 @@ The ~document.write~ sink works with ~script~ elements, so you can use a simple 
 #+begin_src js
 document.write('... <script>alert(document.domain)</script> ...');
 #+end_src
+
+Note, however, that in some situations the content that is written to document.write includes some surrounding context that you need to take account of in your exploit. For example, you might need to close some existing elements before using your JavaScript payload.
+
+**** Lab: DOM XSS in document.write sink using source location.search
+APPRENTICE
+
+LAB
+Solved
+This lab contains a DOM-based cross-site scripting vulnerability in the search query tracking functionality. It uses the JavaScript document.write function, which writes data out to the page. The document.write function is called with data from location.search, which you can control using the website URL.
+
+To solve this lab, perform a cross-site scripting attack that calls the alert function.
+
+- solution:
+  for this lab I used the DOM invader extension, I injected the payload into the URL, the invader found an exploit and I exploited it.
+
+**** Lab: DOM XSS in document.write sink using source location.search inside a select element
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a DOM-based cross-site scripting vulnerability in the stock checker functionality. It uses the JavaScript document.write function, which writes data out to the page. The document.write function is called with data from location.search which you can control using the website URL. The data is enclosed within a select element.
+
+To solve this lab, perform a cross-site scripting attack that breaks out of the select element and calls the alert function.
+
+- solution:
+  the stock check function was getting another store from the GET variable storeid, I could then place a payload in this variable.
