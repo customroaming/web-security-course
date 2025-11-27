@@ -539,6 +539,12 @@ document.write('... <script>alert(document.domain)</script> ...');
 
 Note, however, that in some situations the content that is written to document.write includes some surrounding context that you need to take account of in your exploit. For example, you might need to close some existing elements before using your JavaScript payload.
 
+The innerHTML sink doesn't accept script elements on any modern browser, nor will svg onload events fire. This means you will need to use alternative elements like img or iframe. Event handlers such as onload and onerror can be used in conjunction with these elements. For example:
+
+#+begin_src html
+element.innerHTML='... <img src=1 onerror=alert(document.domain)> ...'
+#+end_src
+
 **** Lab: DOM XSS in document.write sink using source location.search
 APPRENTICE
 
@@ -562,3 +568,107 @@ To solve this lab, perform a cross-site scripting attack that breaks out of the 
 
 - solution:
   the stock check function was getting another store from the GET variable storeid, I could then place a payload in this variable.
+
+**** Lab: DOM XSS in innerHTML sink using source location.search
+APPRENTICE
+
+LAB
+Solved
+This lab contains a DOM-based cross-site scripting vulnerability in the search blog functionality. It uses an innerHTML assignment, which changes the HTML contents of a div element, using data from location.search.
+
+To solve this lab, perform a cross-site scripting attack that calls the alert function.
+
+- solution:
+  this lab was similar to the first lab in the DOM section; however, as most modern browsers don't allow script tags in inner.html, I had to use an img element with a src of 1 (anything that gives an error) then place an onerror attribute, that runs alert(1)
+  #+begin_src html https://0af8007004a9cbb081f2ed7700580064.web-security-academy.net/?search=%22%27%3E%3Cimg%20src%20onerror=alert(1)%3E
+  #+end_src
+
+*** Sources and sinks in third-party dependencies
+Modern web applications are typically built using a number of third-party libraries and frameworks, which often provide additional functions and capabilities for developers. It's important to remember that some of these are also potential sources and sinks for DOM XSS.
+
+**** DOM XSS in jQuery
+If a JavaScript library such as jQuery is being used, look out for sinks that can alter DOM elements on the page. For instance, jQuery's attr() function can change the attributes of DOM elements. If data is read from a user-controlled source like the URL, then passed to the attr() function, then it may be possible to manipulate the value sent to cause XSS. For example, here we have some JavaScript that changes an anchor element's href attribute using data from the URL:
+
+#+begin_src js
+$(function() {
+	$('#backLink').attr("href",(new URLSearchParams(window.location.search)).get('returnUrl'));
+});
+#+end_src
+
+You can exploit this by modifying the URL so that the location.search source contains a malicious JavaScript URL. After the page's JavaScript applies this malicious URL to the back link's href, clicking on the back link will execute it:
+
+
+#+begin_src js
+?returnUrl=javascript:alert(document.domain)
+#+end_src
+
+Another potential sink to look out for is jQuery's $() selector function, which can be used to inject malicious objects into the DOM.
+
+jQuery used to be extremely popular, and a classic DOM XSS vulnerability was caused by websites using this selector in conjunction with the location.hash source for animations or auto-scrolling to a particular element on the page. This behavior was often implemented using a vulnerable hashchange event handler, similar to the following:
+
+#+begin_src js
+$(window).on('hashchange', function() {
+	var element = $(location.hash);
+	element[0].scrollIntoView();
+});
+#+end_src
+
+As the hash is user controllable, an attacker could use this to inject an XSS vector into the $() selector sink. More recent versions of jQuery have patched this particular vulnerability by preventing you from injecting HTML into a selector when the input begins with a hash character (#). However, you may still find vulnerable code in the wild.
+
+To actually exploit this classic vulnerability, you'll need to find a way to trigger a hashchange event without user interaction. One of the simplest ways of doing this is to deliver your exploit via an iframe:
+
+#+begin_src html
+<iframe src="https://vulnerable-website.com#" onload="this.src+='<img src=1 onerror=alert(1)>'">
+#+end_src
+
+In this example, the src attribute points to the vulnerable page with an empty hash value. When the iframe is loaded, an XSS vector is appended to the hash, causing the hashchange event to fire.
+
+#+begin_quote
+Note
+Even newer versions of jQuery can still be vulnerable via the $() selector sink, provided you have full control over its input from a source that doesn't require a # prefix.
+#+end_quote
+
+***** Lab: DOM XSS in jQuery anchor href attribute sink using location.search source
+APPRENTICE
+
+LAB
+Solved
+This lab contains a DOM-based cross-site scripting vulnerability in the submit feedback page. It uses the jQuery library's $ selector function to find an anchor element, and changes its href attribute using data from location.search.
+
+To solve this lab, make the "back" link alert document.cookie.
+
+- solution:
+  this lab took the url GET parameter and used it as an href attribute for the back button, I then changed the variable to javascript:alert(document.cookie)
+
+***** Lab: DOM XSS in jQuery selector sink using a hashchange event
+APPRENTICE
+
+LAB
+Solved
+This lab contains a DOM-based cross-site scripting vulnerability on the home page. It uses jQuery's $() selector function to auto-scroll to a given post, whose title is passed via the location.hash property.
+
+To solve the lab, deliver an exploit to the victim that calls the print() function in their browser.
+
+- solution:
+  I had to create an iframe that when the client loaded, changed the hash selector, this activated the jquery, which then delivered the exploit.
+  #+begin_src html
+<iframe src="https://0a4000e103fc922080af036b007e000a.web-security-academy.net/#"
+        onload="this.src+='<img src=1 onerror=print()>'">
+  #+end_src
+
+**** DOM XSS in AngularJS
+If a framework like AngularJS is used, it may be possible to execute JavaScript without angle brackets or events. When a site uses the ng-app attribute on an HTML element, it will be processed by AngularJS. In this case, AngularJS will execute JavaScript inside double curly braces that can occur directly in HTML or inside attributes.
+
+***** Lab: DOM XSS in AngularJS expression with angle brackets and double quotes HTML-encoded
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a DOM-based cross-site scripting vulnerability in a AngularJS expression within the search functionality.
+
+AngularJS is a popular JavaScript library, which scans the contents of HTML nodes containing the ng-app attribute (also known as an AngularJS directive). When a directive is added to the HTML code, you can execute JavaScript expressions within double curly braces. This technique is useful when angle brackets are being encoded.
+
+To solve this lab, perform a cross-site scripting attack that executes an AngularJS expression and calls the alert function.
+
+- solution:
+  this one was hard, I could see that the site was evaluating the expression {{1+1}}, but I then had to use ~$on.constructor('alert(1)')()~ which is something I have to learn to investigate.
