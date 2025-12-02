@@ -100,6 +100,63 @@ What is the difference between reflected XSS and stored XSS? Reflected XSS arise
 
 What is the difference between reflected XSS and self-XSS? Self-XSS involves similar application behavior to regular reflected XSS, however it cannot be triggered in normal ways via a crafted URL or a cross-domain request. Instead, the vulnerability is only triggered if the victim themselves submits the XSS payload from their browser. Delivering a self-XSS attack normally involves socially engineering the victim to paste some attacker-supplied input into their browser. As such, it is normally considered to be a lame, low-impact issue.
 
+** Client-side template injection
+In this section, we'll look at client-side template injection vulnerabilities and how you can exploit them for XSS attacks. This attack technique was pioneered by our research team - read more in XSS without HTML: Client-Side Template Injection with AngularJS. Although client-side template injection is a generic issue, we'll focus on examples from the AngularJS framework as this is the most common. We'll describe how you can craft exploits that escape from the AngularJS sandbox, and how you can potentially use AngularJS features to bypass content security policy (CSP).
+
+What is client-side template injection?
+Client-side template injection vulnerabilities arise when applications using a client-side template framework dynamically embed user input in web pages. When rendering a page, the framework scans it for template expressions and executes any that it encounters. An attacker can exploit this by supplying a malicious template expression that launches a cross-site scripting (XSS) attack.
+
+*** What is the AngularJS sandbox?
+The AngularJS sandbox is a mechanism that prevents access to potentially dangerous objects, such as ~window~ or ~document~, in AngularJS template expressions. It also prevents access to potentially dangerous properties, such as ~__proto__~. Despite not being considered a security boundary by the AngularJS team, the wider developer community generally thinks otherwise. Although bypassing the sandbox was initially challenging, security researchers have discovered numerous ways of doing so. As a result, it was eventually removed from AngularJS in version 1.6. However, many legacy applications still use older versions of AngularJS and may be vulnerable as a result.
+
+*** How does the AngularJS sandbox work?
+The sandbox works by parsing an expression, rewriting the JavaScript, and then using various functions to test whether the rewritten code contains any dangerous objects. For example, the ensureSafeObject() function checks whether a given object references itself. This is one way to detect the window object, for example. The Function constructor is detected in roughly the same way, by checking whether the constructor property references itself.
+
+The ensureSafeMemberName() function checks each property access of the object and, if it contains dangerous properties such as __proto__ or __lookupGetter__, the object will be blocked. The ensureSafeFunction()function prevents call(), apply(), bind(), or constructor() from being called.
+
+You can see the sandbox in action for yourself by visiting this fiddle and setting a breakpoint at line 13275 of the angular.js file. The variable fnString contains your rewritten code, so you can look at how AngularJS transforms it.
+
+[[https://portswigger.net/research/xss-without-html-client-side-template-injection-with-angularjs][angular exploits blog post]]
+
+*** How does an AngularJS sandbox escape work?
+A sandbox escape involves tricking the sandbox into thinking the malicious expression is benign. The most well-known escape uses the modified charAt() function globally within an expression:
+
+'a'.constructor.prototype.charAt=[].join
+When it was initially discovered, AngularJS did not prevent this modification. The attack works by overwriting the function using the [].join method, which causes the charAt() function to return all the characters sent to it, rather than a specific single character. Due to the logic of the isIdent() function in AngularJS, it compares what it thinks is a single character against multiple characters. As single characters are always less than multiple characters, the isIdent() function always returns true, as demonstrated by the following example:
+#+begin_src js
+isIdent = function(ch) {
+    return ('a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || '_' === ch || ch === '$');
+}
+isIdent('x9=9a9l9e9r9t9(919)')
+#+end_src
+Once the isIdent() function is fooled, you can inject malicious JavaScript. For example, an expression such as $eval('x=alert(1)') would be allowed because AngularJS treats every character as an identifier. Note that we need to use AngularJS's $eval() function because overwriting the charAt() function will only take effect once the sandboxed code is executed. This technique would then bypass the sandbox and allow arbitrary JavaScript execution. PortSwigger Research broke the AngularJS sandbox comprehensively, multiple times.
+
+*** Constructing an advanced AngularJS sandbox escape
+So you've learned how a basic sandbox escape works, but you may encounter sites that are more restrictive with which characters they allow. For example, a site may prevent you from using double or single quotes. In this situation, you need to use functions such as String.fromCharCode() to generate your characters. Although AngularJS prevents access to the String constructor within an expression, you can get round this by using the constructor property of a string instead. This obviously requires a string, so to construct an attack like this, you would need to find a way of creating a string without using single or double quotes.
+
+In a standard sandbox escape, you would use $eval() to execute your JavaScript payload, but in the lab below, the $eval() function is undefined. Fortunately, we can use the orderBy filter instead. The typical syntax of an orderBy filter is as follows:
+
+[123]|orderBy:'Some string'
+Note that the | operator has a different meaning than in JavaScript. Normally, this is a bitwise OR operation, but in AngularJS it indicates a filter operation. In the code above, we are sending the array [123] on the left to the orderBy filter on the right. The colon signifies an argument to send to the filter, which in this case is a string. The orderBy filter is normally used to sort an object, but it also accepts an expression, which means we can use it to pass a payload.
+
+You should now have all the tools you need to tackle the next lab.
+
+**** Lab: Reflected XSS with AngularJS sandbox escape without strings
+EXPERT
+
+LAB
+Solved
+This lab uses AngularJS in an unusual way where the $eval function is not available and you will be unable to use any strings in AngularJS.
+
+To solve the lab, perform a cross-site scripting attack that escapes the sandbox and executes the alert function without using the $eval function.
+
+ACCESS THE LAB
+ Solution
+Visit the following URL, replacing YOUR-LAB-ID with your lab ID:
+
+https://YOUR-LAB-ID.web-security-academy.net/?search=1&toString().constructor.prototype.charAt%3d[].join;[1]|orderBy:toString().constructor.fromCharCode(120,61,97,108,101,114,116,40,49,41)=1
+The exploit uses toString() to create a string without using quotes. It then gets the String prototype and overwrites the charAt function for every string. This effectively breaks the AngularJS sandbox. Next, an array is passed to the orderBy filter. We then set the argument for the filter by again using toString() to create a string and the String constructor property. Finally, we use the fromCharCode method generate our payload by converting character codes into the string x=alert(1). Because the charAt function has been overwritten, AngularJS will allow this code where normally it would not.
+
 * Stored cross-site scripting
 Stored XSS (also known as persistent or second-order XSS) arises when an application receives data from an untrusted source and includes that data within its later HTTP responses in an unsafe way.
 
@@ -977,3 +1034,83 @@ if (csrf) {
 #+end_src
 Replace the academyFrontend and exploitServer URLs with the URLs of your lab environment and exploit server respectively.
 Click Store, then Deliver exploit to victim. The user's email will be changed to hacker@evil-user.net.
+
+** Content security policy
+In this section, we'll explain what content security policy is, and describe how CSP can be used to mitigate against some common attacks.
+
+What is CSP (content security policy)?
+CSP is a browser security mechanism that aims to mitigate XSS and some other attacks. It works by restricting the resources (such as scripts and images) that a page can load and restricting whether a page can be framed by other pages.
+
+To enable CSP, a response needs to include an HTTP response header called Content-Security-Policy with a value containing the policy. The policy itself consists of one or more directives, separated by semicolons.
+
+*** Mitigating XSS attacks using CSP
+The following directive will only allow scripts to be loaded from the same origin as the page itself:
+
+~script-src 'self'~
+The following directive will only allow scripts to be loaded from a specific domain:
+
+~script-src https://scripts.normal-website.com~
+Care should be taken when allowing scripts from external domains. If there is any way for an attacker to control content that is served from the external domain, then they might be able to deliver an attack. For example, content delivery networks (CDNs) that do not use per-customer URLs, such as ajax.googleapis.com, should not be trusted, because third parties can get content onto their domains.
+
+In addition to whitelisting specific domains, content security policy also provides two other ways of specifying trusted resources: nonces and hashes:
+
+The CSP directive can specify a nonce (a random value) and the same value must be used in the tag that loads a script. If the values do not match, then the script will not execute. To be effective as a control, the nonce must be securely generated on each page load and not be guessable by an attacker.
+The CSP directive can specify a hash of the contents of the trusted script. If the hash of the actual script does not match the value specified in the directive, then the script will not execute. If the content of the script ever changes, then you will of course need to update the hash value that is specified in the directive.
+It's quite common for a CSP to block resources like script. However, many CSPs do allow image requests. This means you can often use img elements to make requests to external servers in order to disclose CSRF tokens, for example.
+
+Some browsers, such as Chrome, have built-in dangling markup mitigation that will block requests containing certain characters, such as raw, unencoded new lines or angle brackets.
+
+Some policies are more restrictive and prevent all forms of external requests. However, it's still possible to get round these restrictions by eliciting some user interaction. To bypass this form of policy, you need to inject an HTML element that, when clicked, will store and send everything enclosed by the injected element to an external server.
+
+*** Mitigating dangling markup attacks using CSP
+The following directive will only allow images to be loaded from the same origin as the page itself:
+
+~img-src 'self'~
+The following directive will only allow images to be loaded from a specific domain:
+
+~img-src https://images.normal-website.com~
+Note that these policies will prevent some dangling markup exploits, because an easy way to capture data with no user interaction is using an img tag. However, it will not prevent other exploits, such as those that inject an anchor tag with a dangling href attribute.
+
+*** Bypassing CSP with policy injection
+You may encounter a website that reflects input into the actual policy, most likely in a ~report-uri~ directive. If the site reflects a parameter that you can control, you can inject a semicolon to add your own CSP directives. Usually, this report-uri directive is the final one in the list. This means you will need to overwrite existing directives in order to exploit this vulnerability and bypass the policy.
+
+Normally, it's not possible to overwrite an existing script-src directive. However, Chrome recently introduced the ~script-src-elem~ directive, which allows you to control script elements, but not events. Crucially, this new directive allows you to overwrite existing script-src directives. Using this knowledge, you should be able to solve the following lab.
+
+Since Chrome ignores invalid directives and our injection happens at the end of the policy, I needed a way to override a directive. I found a recently proposed directive called "script-src-elem". This directive allows you to control just script blocks and was created so that you can allow event handlers but block script elements for example:
+
+Content-Security-Policy: script-src-elem 'none'; script-src-attr 'unsafe-inline'
+
+#+begin_src html
+<script>alert("This will be blocked")</script>
+<a href="#" onclick="alert('This will be allowed')">test</a>
+#+end_src
+
+**** Lab: Reflected XSS protected by CSP, with CSP bypass
+EXPERT
+
+LAB
+Solved
+This lab uses CSP and contains a reflected XSS vulnerability.
+
+To solve the lab, perform a cross-site scripting attack that bypasses the CSP and calls the alert function.
+
+Please note that the intended solution to this lab is only possible in Chrome.
+
+- solution:
+  This one was actually okay, the reflected XSS was being blocked by the CSP, I saw that the uri report had an open token, so I modified the search URL to this:
+
+https://0a4d0088039678628232a19e005f0049.web-security-academy.net/?token=foo;%20script-src-attr%20%27unsafe-inline%27&search=%3Cimg%20src%20onerror=%22alert(1)%22%3E
+
+*** Protecting against clickjacking using CSP
+The following directive will only allow the page to be framed by other pages from the same origin:
+
+frame-ancestors 'self'
+The following directive will prevent framing altogether:
+
+frame-ancestors 'none'
+Using content security policy to prevent clickjacking is more flexible than using the X-Frame-Options header because you can specify multiple domains and use wildcards. For example:
+
+frame-ancestors 'self' https://normal-website.com https://*.robust-website.com
+CSP also validates each frame in the parent frame hierarchy, whereas X-Frame-Options only validates the top-level frame.
+
+Using CSP to protect against clickjacking attacks is recommended. You can also combine this with the X-Frame-Options header to provide protection on older browsers that don't support CSP, such as Internet Explorer.
